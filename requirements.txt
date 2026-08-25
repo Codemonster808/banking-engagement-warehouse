@@ -1,0 +1,8 @@
+flask
+pyspark>=4.0
+delta-spark
+duckdb
+boto3
+pytest
+python-dotenv
+pydantic
