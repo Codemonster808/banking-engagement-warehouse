@@ -1,0 +1,7 @@
+{
+  "buckets": ["bank-bronze", "bank-silver", "bank-gold"],
+  "queues": ["quality-oncall-queue"],
+  "tables": ["pipeline-cost", "sla-alert-dedup", "pipeline-run-timer"],
+  "topics": ["quality-alerts"],
+  "functions": ["bank-mark-started", "bank-check-sla"]
+}
