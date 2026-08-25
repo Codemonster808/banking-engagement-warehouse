@@ -13,12 +13,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import uuid  # noqa: E402
+
 from common import aws  # noqa: E402
 from gates import run_all_gates  # noqa: E402
 from gold import build_dim_customer  # noqa: E402
 from silver import build_spark, clean_month  # noqa: E402
+from statemachine import check_sla, mark_started  # noqa: E402
 
 ALERT_TOPIC = "quality-alerts"
+SLA_SECONDS = 180
 
 
 def list_bronze_months(s3) -> list[str]:
@@ -48,6 +52,9 @@ def revoke_silver_promotion(s3, month_key: str) -> None:
 
 
 def run_pipeline(known_customer_ids: set) -> dict:
+    run_id = str(uuid.uuid4())
+    mark_started(run_id)  # Step Functions: real Choice/Retry/Catch around the SLA timer
+
     spark = build_spark("pipeline")
     s3 = aws.client("s3")
     sns = aws.client("sns")
@@ -93,6 +100,7 @@ def run_pipeline(known_customer_ids: set) -> dict:
         else:
             results["gold_rows_written"] = 0
 
+        results["sla"] = check_sla(run_id, sla_seconds=SLA_SECONDS)
         return results
     finally:
         spark.stop()

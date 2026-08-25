@@ -1,11 +1,11 @@
 {
   "pipeline": "banking-engagement-warehouse",
-  "generated_at": "2026-08-25T16:20:17.746964+00:00",
+  "generated_at": "2026-08-25T17:03:19.397572+00:00",
   "score": {
     "completeness": 1.0,
+    "timeliness": 1.0,
     "correctness": 1.0,
     "validity": 1.0,
-    "timeliness": 1.0,
     "overall": 1.0
   },
   "checks": [
@@ -16,6 +16,14 @@
       "threshold": 3,
       "passed": true,
       "detail": "bronze_rows == silver_rows + rejects for every promoted month"
+    },
+    {
+      "dimension": "timeliness",
+      "name": "sla_timer_runs_via_real_step_functions",
+      "measured": 1.0,
+      "threshold": 1.0,
+      "passed": true,
+      "detail": "sla={'breached': False, 'elapsed_seconds': 38}"
     },
     {
       "dimension": "correctness",
@@ -60,7 +68,7 @@
     {
       "dimension": "timeliness",
       "name": "clean_pipeline_run_under_sla",
-      "measured": 36.5,
+      "measured": 40.5,
       "threshold": 180.0,
       "passed": true,
       "detail": "3-month pipeline run wall time"

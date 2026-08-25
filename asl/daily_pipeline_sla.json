@@ -1,0 +1,14 @@
+{
+  "Comment": "Wraps the daily bronze->gates->silver->gold pipeline (run by the driver, src/statemachine.py, between the two executions below) with a real SLA timer. Execution input must be {\"run_id\": \"<id>\"}.",
+  "StartAt": "MarkStarted",
+  "States": {
+    "MarkStarted": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:000000000000:function:bank-mark-started",
+      "Retry": [
+        {"ErrorEquals": ["States.ALL"], "MaxAttempts": 3, "IntervalSeconds": 1, "BackoffRate": 2.0}
+      ],
+      "End": true
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "Comment": "Run after the driver's pipeline.py call finishes — checks elapsed time against the SLA and publishes a deduped SNS alert on breach. Execution input must be {\"run_id\": \"<id>\", \"sla_seconds\": N}.",
+  "StartAt": "CheckSLA",
+  "States": {
+    "CheckSLA": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:000000000000:function:bank-check-sla",
+      "Retry": [
+        {"ErrorEquals": ["States.ALL"], "MaxAttempts": 3, "IntervalSeconds": 1, "BackoffRate": 2.0}
+      ],
+      "Catch": [
+        {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "SLACheckFailed"}
+      ],
+      "Next": "IsBreached"
+    },
+    "IsBreached": {
+      "Type": "Choice",
+      "Choices": [
+        {"Variable": "$.breached", "BooleanEquals": true, "Next": "Breached"}
+      ],
+      "Default": "WithinSLA"
+    },
+    "Breached": {"Type": "Succeed"},
+    "WithinSLA": {"Type": "Succeed"},
+    "SLACheckFailed": {"Type": "Fail", "Error": "SLACheckFailed"}
+  }
+}

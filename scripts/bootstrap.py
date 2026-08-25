@@ -12,6 +12,7 @@ ALERT_TOPIC = "quality-alerts"
 ALERT_QUEUE = "quality-oncall-queue"
 COST_TABLE = "pipeline-cost"
 ALERT_DEDUP_TABLE = "sla-alert-dedup"
+RUN_TIMER_TABLE = "pipeline-run-timer"
 
 
 def ensure_bucket(s3, name: str) -> None:
@@ -83,6 +84,7 @@ def main() -> None:
     ddb = aws.client("dynamodb")
     ensure_table(ddb, COST_TABLE, "pipeline_id")
     ensure_table(ddb, ALERT_DEDUP_TABLE, "alert_id")
+    ensure_table(ddb, RUN_TIMER_TABLE, "run_id")
 
     print("Bootstrap complete.")
 

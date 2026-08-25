@@ -83,6 +83,11 @@ def test_full_pipeline_quality(clean_buckets):
         measured=sum(1 for m in clean_result["months"] if m.get("silver_stats", {}).get("reconciled")),
         threshold=N_MONTHS, detail="bronze_rows == silver_rows + rejects for every promoted month",
     )
+    report.check(
+        Dimension.TIMELINESS, "sla_timer_runs_via_real_step_functions",
+        measured=1.0 if "sla" in clean_result and "breached" in clean_result["sla"] else 0.0,
+        threshold=1.0, detail=f"sla={clean_result.get('sla')}",
+    )
 
     report.check(
         Dimension.CORRECTNESS, "clean_run_promotes_all_months",
