@@ -13,3 +13,10 @@ src/gate/gate
 src/gateway/gateway
 .chroma/
 .terraform/
+.coverage
+coverage.xml
+htmlcov/
+
+# Personal interview-prep notes — never pushed
+docs/INTERVIEW_PREP.md
+docs/LEARNING_BUILD.md

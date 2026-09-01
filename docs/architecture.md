@@ -4,7 +4,7 @@
 flowchart LR
     EVT[Synthetic engagement events\nlogin, txn, offer, redemption] --> BRONZE[(S3 bronze\nraw)]
     BRONZE --> SILVER_JOB[PySpark: clean, dedupe, type]
-    SILVER_JOB --> SILVER[(Delta silver)]
+    SILVER_JOB --> SILVER[(S3 silver\nplain JSON, not Delta)]
     SILVER --> QGATE{Quality gates\n6 defect classes}
     QGATE -->|fail| SNS[SNS: quality-alert]
     SNS --> SQSQ[SQS: on-call queue\nderuped]

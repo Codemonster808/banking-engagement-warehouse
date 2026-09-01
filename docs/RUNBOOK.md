@@ -24,7 +24,7 @@ Si otro repo dejó MiniStack arriba, está bien. Si P1 dejó el gate en :8080, n
 ### 1.1 Datos bronze locales
 
 ```bash
-python3 src/data_gen.py --months 3 --customers 200 --out data --seed 42
+python3 src/ingestion/data_gen.py --months 3 --customers 200 --out data --seed 42
 ls data/month=*.jsonl
 python3 -c "print(sum(1 for _ in open('data/month=00.jsonl')), 'events in month 00')"
 ```
@@ -34,7 +34,7 @@ También se escribe `_ground_truth_segments.json` — eso es lo que SCD2 tiene q
 ### 1.2 Subir a S3 (todavía no hay silver)
 
 ```bash
-python3 src/upload_bronze.py --in data
+python3 src/ingestion/upload_bronze.py --in data
 python3 scripts/aws_inspect.py s3
 ```
 
@@ -43,17 +43,18 @@ python3 scripts/aws_inspect.py s3
 ### 1.3 Pipeline: gates → silver → gold
 
 ```bash
-python3 src/pipeline.py --customers 200
+python3 src/transformation/pipeline.py --customers 200
 python3 scripts/aws_inspect.py s3
 python3 scripts/aws_inspect.py sqs
-python3 src/facts.py
-python3 src/catalog.py     # registra dim_customer/fact_engagement_daily/dim_offer en Glue
+python3 src/transformation/catalog.py     # registra dim_customer/fact_engagement_daily/dim_offer en Glue
 make query
 ```
 
+`pipeline.py` ya construye las tres tablas gold en la misma corrida — `dim_customer` (SCD2), `fact_engagement_daily` y `dim_offer` — sobre los mismos meses promovidos a silver; `src/transformation/facts.py` ya no es un paso separado obligatorio, queda como CLI standalone por si quieres reconstruir solo esas dos tablas con un `--silver-glob` distinto sin rehacer gates/silver/dim_customer.
+
 `--customers` **tiene que coincidir** con data_gen. Si pones 5000 sobre un gen de 200, el gate de integridad referencial ve “huérfanos” al revés (IDs conocidos de más no fallan; IDs en eventos fuera del set sí). Usa el mismo número.
 
-**Qué inspeccionar:** `bank-silver/clean/month=00/` existe solo si los 6 gates pasaron. `bank-gold/dim_customer/` es el SCD2. `src/catalog.py` no lee ni valida el Parquet — solo registra el schema que ya sabemos que Spark escribió (`src/gold.py`/`src/facts.py`); si esos cambian, `src/catalog.py` hay que actualizarlo a mano, no se infiere.
+**Qué inspeccionar:** `bank-silver/clean/month=00/` existe solo si los 6 gates pasaron. `bank-gold/dim_customer/`, `bank-gold/fact_engagement_daily/` y `bank-gold/dim_offer/` se escriben todos por `pipeline.py`. `src/transformation/catalog.py` no lee ni valida el Parquet — solo registra el schema que ya sabemos que Spark escribió (`src/transformation/gold.py`/`src/transformation/facts.py`); si esos cambian, `src/transformation/catalog.py` hay que actualizarlo a mano, no se infiere.
 
 ---
 
@@ -79,7 +80,7 @@ aws sqs get-queue-attributes --queue-url "$QUEUE_URL" --attribute-names All
 aws dynamodb scan --table-name pipeline-cost --max-items 5
 aws dynamodb scan --table-name pipeline-run-timer --max-items 5
 
-# Lambda — mark_started / check_sla, invocados desde src/statemachine.py
+# Lambda — mark_started / check_sla, invocados desde src/orchestration/statemachine.py
 aws lambda get-function --function-name bank-check-sla --query 'Configuration.[State,Runtime]'
 
 # Step Functions — dos máquinas: una marca el inicio, otra evalúa el SLA
@@ -128,7 +129,7 @@ s3.upload_file('data/month=01.corrupt.jsonl', 'bank-bronze', 'month=01.jsonl')
 print('uploaded corrupt month=01')
 "
 
-python3 src/pipeline.py --customers 200
+python3 src/transformation/pipeline.py --customers 200
 python3 scripts/aws_inspect.py s3
 python3 scripts/aws_inspect.py sqs
 ```
@@ -138,7 +139,7 @@ python3 scripts/aws_inspect.py sqs
 - Ese mes **no** se promociona a silver (`revoke_silver_promotion` borra silver stale si había corrida previa OK)
 - SNS publica a `quality-alerts` → cola `quality-oncall-queue` (visible ≥ 1)
 
-Luego restaura el archivo bueno con `python3 src/upload_bronze.py --in data` (el jsonl original sigue en `data/month=01.jsonl`).
+Luego restaura el archivo bueno con `python3 src/ingestion/upload_bronze.py --in data` (el jsonl original sigue en `data/month=01.jsonl`).
 
 ---
 
@@ -184,11 +185,11 @@ Corre el pipeline dos veces sobre el mismo mes limpio y compara `aws dynamodb sc
 
 **4. Compara el schema de Glue contra el código Spark que realmente escribió el Parquet, no al revés**
 
-`aws glue get-table --database-name bank_gold --name fact_engagement_daily --query 'Table.StorageDescriptor.Columns'`, y compáralo columna por columna contra `build_fact_engagement_daily` en `src/facts.py`.
+`aws glue get-table --database-name bank_gold --name fact_engagement_daily --query 'Table.StorageDescriptor.Columns'`, y compáralo columna por columna contra `build_fact_engagement_daily` en `src/transformation/facts.py`.
 
 <details><summary>Verificar</summary>
 
-Deberían coincidir exactamente: `customer_id`/`event_date`/`event_type`/`n_events`/`total_amount_cents` — porque `src/catalog.py` no infiere el schema del Parquet, lo copia a mano de los mismos builders de Spark. Eso es una decisión deliberada, no pereza: si mañana alguien agrega una columna en `facts.py` y no toca `catalog.py`, el catálogo queda desincronizado — y **ese** es justo el tipo de drift que un catálogo de datos real está para exponer, no para ocultar. Prueba el caso: agrega una columna falsa a `build_dim_offer` sin tocar `catalog.py`, corre `make demo`, y compara — el catálogo no se entera solo.
+Deberían coincidir exactamente: `customer_id`/`event_date`/`event_type`/`n_events`/`total_amount_cents` — porque `src/transformation/catalog.py` no infiere el schema del Parquet, lo copia a mano de los mismos builders de Spark. Eso es una decisión deliberada, no pereza: si mañana alguien agrega una columna en `facts.py` y no toca `catalog.py`, el catálogo queda desincronizado — y **ese** es justo el tipo de drift que un catálogo de datos real está para exponer, no para ocultar. Prueba el caso: agrega una columna falsa a `build_dim_offer` sin tocar `catalog.py`, corre `make demo`, y compara — el catálogo no se entera solo.
 </details>
 
 **5. Confirma con tus propios ojos que Athena está mockeado (y por qué Glue solo no alcanza)**

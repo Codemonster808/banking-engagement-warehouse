@@ -39,13 +39,13 @@ make check-env   # "OK: services reachable"
 Generate 24 months of synthetic events: `login`, `card_txn`, `offer_shown`, `offer_redeemed`, each with a `customer_id` and a `segment` that changes for ~5% of customers each month (this is what SCD2 needs to capture).
 
 ```bash
-python3 src/data_gen.py --months 24 --customers 50000 --out data/bronze/
+python3 src/ingestion/data_gen.py --months 24 --customers 50000 --out data/bronze/
 make check-data   # "OK: 24 months, ~5% segment churn/month confirmed"
 ```
 
 ## 3. Build bronze → silver (3 h) → checkpoint: `make check-silver`
 
-Write `src/silver.py`: read bronze, dedupe by event ID, cast types, drop clearly malformed rows to a `silver_rejects` path.
+Write `src/transformation/silver.py`: read bronze, dedupe by event ID, cast types, drop clearly malformed rows to a `silver_rejects` path.
 
 ```bash
 make check-silver   # asserts row counts reconcile: bronze == silver + silver_rejects
@@ -71,18 +71,18 @@ make check-gates   # inject one bad record per defect class; each must be caught
 
 ## 5. Build gold: SCD Type 2 (4-6 h) → checkpoint: `make check-scd2`
 
-Write `src/gold.py`: for each customer, if `segment` changed since the last known row, close the old row (`valid_to = event_date`) and insert a new one (`valid_from = event_date, valid_to = null`).
+Write `src/transformation/gold.py`: for each customer, if `segment` changed since the last known row, close the old row (`valid_to = event_date`) and insert a new one (`valid_from = event_date, valid_to = null`).
 
 ```bash
 make check-scd2   # asserts no overlapping valid_from/valid_to ranges for any customer
 ```
 
-## 6. Prove backfill correctness (3 h) → checkpoint: `pytest tests/test_scd2_backfill.py`
+## 6. Prove backfill correctness (3 h) → checkpoint: `pytest tests/data_quality/test_scd2_backfill.py`
 
 Run the full 24 months once. Save a hash of `dim_customer`. Delete and reprocess months 1-24 again from bronze. Compare hashes.
 
 ```bash
-pytest tests/test_scd2_backfill.py   # must pass: reprocessed history is byte-identical
+pytest tests/data_quality/test_scd2_backfill.py   # must pass: reprocessed history is byte-identical
 ```
 
 This is the single most important checkpoint in the repo — do not skip it.

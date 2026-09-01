@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Idempotent creation of the AWS resources this repo needs, against MiniStack."""
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from common import aws  # noqa: E402
+from utils import aws  # noqa: E402
 
 BUCKETS = ["bank-bronze", "bank-silver", "bank-gold"]
 ALERT_TOPIC = "quality-alerts"
@@ -42,12 +43,19 @@ def ensure_topic(sns, name: str) -> str:
 
 
 def ensure_subscription(sns, sqs, topic_arn: str, queue_url: str) -> None:
-    queue_arn = sqs.get_queue_attributes(QueueUrl=queue_url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+    queue_arn = sqs.get_queue_attributes(QueueUrl=queue_url, AttributeNames=["QueueArn"])[
+        "Attributes"
+    ]["QueueArn"]
     existing = sns.list_subscriptions_by_topic(TopicArn=topic_arn)["Subscriptions"]
     if any(s["Endpoint"] == queue_arn for s in existing):
         print(f"  subscription already exists: {queue_arn}")
         return
-    sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn, Attributes={"RawMessageDelivery": "true"})
+    sns.subscribe(
+        TopicArn=topic_arn,
+        Protocol="sqs",
+        Endpoint=queue_arn,
+        Attributes={"RawMessageDelivery": "true"},
+    )
     print(f"  subscribed {queue_arn} -> {topic_arn}")
 
 

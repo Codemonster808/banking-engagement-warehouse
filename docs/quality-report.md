@@ -1,6 +1,6 @@
 # Quality report — banking-engagement-warehouse
 
-Generated: 2026-08-25T17:03:19.397572+00:00
+Generated: 2026-09-01T17:07:04.588786+00:00
 
 **Overall score: 100%** (8/8 checks passed)
 
@@ -16,10 +16,10 @@ Generated: 2026-08-25T17:03:19.397572+00:00
 | Dimension | Check | Measured | Threshold | Status | Detail |
 |---|---|---|---|---|---|
 | completeness | all_months_reconcile_bronze_eq_silver_plus_rejects | 3 | 3 | PASS | bronze_rows == silver_rows + rejects for every promoted month |
-| timeliness | sla_timer_runs_via_real_step_functions | 1.0 | 1.0 | PASS | sla={'breached': False, 'elapsed_seconds': 38} |
+| timeliness | sla_timer_runs_via_real_step_functions | 1.0 | 1.0 | PASS | sla={'breached': False, 'elapsed_seconds': 91} |
 | correctness | clean_run_promotes_all_months | 3 | 3 | PASS | promoted ['month=00', 'month=01', 'month=02'] of 3 months on clean data |
 | correctness | seeded_defect_blocks_exactly_the_bad_month | 1.0 | 1.0 | PASS | blocked=[{'month': 'month=02', 'failed_gates': ['range_outliers']}] |
 | validity | blocked_month_has_no_silver_output | 0 | 0 | PASS | a month that fails gates must leave zero rows in silver, including revoking a prior successful run |
 | validity | gold_reflects_only_promoted_months | 1.0 | 1.0 | PASS | gold has 109 rows, pipeline reported writing 109 |
 | validity | gate_failure_publishes_sns_alert | 1.0 | 1.0 | PASS | SNS -> SQS alert for the blocked month reached the on-call queue |
-| timeliness | clean_pipeline_run_under_sla | 40.5 | 180.0 | PASS | 3-month pipeline run wall time |
+| timeliness | clean_pipeline_run_under_sla | 95.5 | 180.0 | PASS | 3-month pipeline run wall time |
