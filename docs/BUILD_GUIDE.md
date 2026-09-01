@@ -21,7 +21,7 @@ pip install -r requirements.txt
 
 ```bash
 docker compose up -d
-curl http://localhost:4566/_health   # expected: no errors
+curl http://localhost:4583/_health   # expected: no errors
 ```
 
 ## 1. Get the environment running (1 h) → checkpoint: `make check-env`
