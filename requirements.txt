@@ -21,7 +21,7 @@ distlib==0.4.3
 duckdb==1.5.5
 filelock==3.32.5
 Flask==3.1.3
-gherkin-official==29.0.0
+gherkin-official==42.0.1
 identify==2.6.19
 idna==3.19
 importlib_metadata==8.7.1
