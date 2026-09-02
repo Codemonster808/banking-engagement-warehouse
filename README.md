@@ -22,16 +22,18 @@ A dimensional engagement warehouse for bank customer analytics — SCD Type 2 hi
 
 ```
 synthetic banking engagement events (logins, card txns, offers, redemptions)
-  → S3 bronze (raw)
-  → PySpark: bronze → silver (cleaned, deduped, typed) — plain Parquet/JSON, not Delta Lake
-  → silver → gold: dim_customer (SCD Type 2), dim_offer, fact_engagement_daily
-  → data quality gates run BEFORE promotion:
+  → src/ingestion/data_gen.py → src/ingestion/upload_bronze.py → S3 bronze (raw)
+  → src/transformation/silver.py: bronze → silver (cleaned, deduped, typed) — plain Parquet/JSON, not Delta Lake
+  → src/models/gates.py: 6 data-quality gates run BEFORE promotion, driven by src/transformation/pipeline.py:
        fail → block load, publish to SNS → SQS on-call queue (deduped alerts)
-  → Step Functions orchestrates the daily run + an SLA timer
-  → Redshift: serving layer for cohort/retention SQL
-  → cost attribution Lambda: tag-based per-pipeline $/day → DynamoDB
-  → Flask API: /cohort, /sla/status, /cost/by-pipeline
-  → terraform/: Azure (ADLS + Data Factory) export stub, plan-only
+  → silver → gold: src/transformation/gold.py (dim_customer, SCD Type 2),
+                    src/transformation/facts.py (dim_offer, fact_engagement_daily)
+  → src/orchestration/statemachine.py orchestrates the daily run + an SLA timer via
+    Lambdas src/orchestration/lambdas/mark_started.py + check_sla_lambda.py
+  → src/utils/warehouse.py :: DuckDB (Redshift stand-in) — serving layer for cohort/retention SQL
+  → src/orchestration/cost_sla.py: tag-based per-pipeline $/day → DynamoDB
+  → src/serving/api.py :: Flask: /cohort, /sla/status, /cost/by-pipeline
+  → terraform/azure/: Azure (ADLS + Data Factory) export stub, plan-only
 ```
 
 See `docs/architecture.md` for the diagram.
