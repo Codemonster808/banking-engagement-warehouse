@@ -22,7 +22,7 @@ from pyspark.sql import functions as F  # noqa: E402
 
 
 def build_spark(app_name: str = "scd2-gold") -> SparkSession:
-    endpoint = os.environ.get("AWS_ENDPOINT_URL", "http://localhost:4566")
+    endpoint = os.environ.get("AWS_ENDPOINT_URL", "http://localhost:4583")
     return (
         SparkSession.builder.appName(app_name)
         .master("local[2]")
@@ -39,7 +39,14 @@ def build_spark(app_name: str = "scd2-gold") -> SparkSession:
     )
 
 
-def build_dim_customer(spark: SparkSession, bronze_glob: str) -> DataFrame:
+def build_dim_customer(spark: SparkSession, bronze_glob: str | list[str]) -> DataFrame:
+    """Build the SCD2 dim_customer table from one or more event globs.
+
+    `bronze_glob` is either a single path/glob or a **list** of them.
+    The list form is intentional and is what `pipeline.py` passes: every
+    promoted month's silver glob is read in one pass, so the SCD2 windows
+    see the full multi-month history rather than one month at a time.
+    """
     events = spark.read.json(bronze_glob).withColumn("event_ts", F.col("ts").cast("timestamp"))
 
     # One row per (customer, segment) transition: the first time each

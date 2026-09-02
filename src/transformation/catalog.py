@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -36,8 +37,16 @@ from utils import aws  # noqa: E402
 
 DATABASE_NAME = "bank_gold"
 
+
+class TableSpec(TypedDict):
+    """One gold table as Glue needs it: where it lives and its column list."""
+
+    location: str
+    columns: list[dict[str, str]]
+
+
 # Glue column types use the Hive/Presto type names, not Spark's.
-TABLES = {
+TABLES: dict[str, TableSpec] = {
     "dim_customer": {
         "location": "s3://bank-gold/dim_customer/",
         "columns": [
@@ -88,7 +97,9 @@ def ensure_table(glue, table_name: str, location: str, columns: list[dict]) -> N
             "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
             "SerdeInfo": {
-                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+                "SerializationLibrary": (
+                    "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+                )
             },
         },
         "TableType": "EXTERNAL_TABLE",

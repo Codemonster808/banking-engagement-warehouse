@@ -3,7 +3,7 @@
 dim_offer (distinct offer-related event types seen) from promoted silver
 data — the gold-layer facts the README promises alongside dim_customer.
 
-`src/pipeline.py` now calls build_fact_engagement_daily()/build_dim_offer()
+`src/transformation/pipeline.py` now calls build_fact_engagement_daily()/build_dim_offer()
 directly as part of every orchestrated run, over the same promoted-months
 silver globs dim_customer is built from — so `make demo`/the daily pipeline
 run already produces all three gold tables. This file's main() is kept as
@@ -17,12 +17,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from pyspark.sql import DataFrame, SparkSession  # noqa: E402
 from pyspark.sql import functions as F  # noqa: E402
 
 from transformation.silver import build_spark  # noqa: E402
 
 
-def build_fact_engagement_daily(spark, silver_glob: str):
+def build_fact_engagement_daily(spark: SparkSession, silver_glob: str | list[str]) -> DataFrame:
+    """Aggregate silver events to one row per customer/day/event_type.
+
+    `silver_glob` is either a single path/glob or a **list** of them. The
+    list form is intentional and is what `pipeline.py` passes: all promoted
+    months are read in one pass so the daily grain is computed across the
+    whole promoted history, not per month.
+    """
     df = spark.read.json(silver_glob)
     return (
         df.withColumn("event_date", F.to_date(F.col("ts").cast("timestamp")))
@@ -35,7 +43,14 @@ def build_fact_engagement_daily(spark, silver_glob: str):
     )
 
 
-def build_dim_offer(spark, silver_glob: str):
+def build_dim_offer(spark: SparkSession, silver_glob: str | list[str]) -> DataFrame:
+    """Build dim_offer from the offer-related event types in silver.
+
+    `silver_glob` is either a single path/glob or a **list** of them. The
+    list form is intentional and is what `pipeline.py` passes: all promoted
+    months are read in one pass so the distinct-customer counts span the
+    whole promoted history.
+    """
     df = spark.read.json(silver_glob)
     offer_events = df.filter(F.col("event_type").isin(["offer_shown", "offer_redeemed"]))
     return (

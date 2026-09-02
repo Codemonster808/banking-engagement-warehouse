@@ -5,6 +5,7 @@ Wraps the real setup/assertions from tests/data_quality/test_scd2_backfill.py:
 runs the actual gold.py Spark job against the seeded bronze fixtures and
 queries dim_customer via the same DuckDB-over-S3-Parquet path the tests use.
 """
+
 import hashlib
 import json
 import subprocess
@@ -69,7 +70,8 @@ def given_gold_built(gold_built):
 
 @given(
     parsers.parse(
-        "customer {customer_id} changed segment from {old_segment} to {new_segment} on {change_date}"
+        "customer {customer_id} changed segment from {old_segment} to {new_segment} "
+        "on {change_date}"
     ),
     target_fixture="customer_rows",
 )
@@ -81,7 +83,12 @@ def customer_segment_rows(gold_built_flag, customer_id, old_segment, new_segment
         [customer_id],
     ).fetchall()
     assert rows, f"no dim_customer rows found for {customer_id}"
-    return {"customer_id": customer_id, "old_segment": old_segment, "new_segment": new_segment, "rows": rows}
+    return {
+        "customer_id": customer_id,
+        "old_segment": old_segment,
+        "new_segment": new_segment,
+        "rows": rows,
+    }
 
 
 @then(parsers.parse("the {segment} row for {customer_id} has valid_to set and is_current false"))
@@ -90,7 +97,9 @@ def prior_row_closed(customer_rows, segment, customer_id):
     assert matching, f"no {segment} row found for {customer_id}"
     _, valid_from, valid_to, is_current = matching[0]
     assert valid_to is not None, f"expected valid_to set on prior {segment} row for {customer_id}"
-    assert is_current is False, f"expected is_current=false on prior {segment} row for {customer_id}"
+    assert (
+        is_current is False
+    ), f"expected is_current=false on prior {segment} row for {customer_id}"
 
 
 @then(parsers.parse("the {segment} row for {customer_id} is_current true"))
@@ -132,7 +141,10 @@ def no_overlaps(gold_built_flag):
     assert overlaps == [], f"overlapping validity ranges found for customer(s): {overlaps}"
 
 
-@when("the gold job is run again against the same bronze fixtures", target_fixture="reprocess_hashes")
+@when(
+    "the gold job is run again against the same bronze fixtures",
+    target_fixture="reprocess_hashes",
+)
 def reprocess(gold_built_flag):
     hash_before = _hash_dim_customer()
     _run_gold_job()  # full reprocess from the same bronze data
@@ -142,6 +154,6 @@ def reprocess(gold_built_flag):
 
 @then("the dim_customer history hash is unchanged")
 def hash_unchanged(reprocess_hashes):
-    assert reprocess_hashes["before"] == reprocess_hashes["after"], (
-        "dim_customer history changed on reprocess — non-determinism in the Spark job"
-    )
+    assert (
+        reprocess_hashes["before"] == reprocess_hashes["after"]
+    ), "dim_customer history changed on reprocess — non-determinism in the Spark job"

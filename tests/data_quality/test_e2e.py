@@ -138,7 +138,10 @@ def test_full_pipeline_quality(clean_buckets):
         measured=n_silver_bad_month,
         threshold=0,
         higher_is_better=False,
-        detail="a month that fails gates must leave zero rows in silver, including revoking a prior successful run",
+        detail=(
+            "a month that fails gates must leave zero rows in silver, "
+            "including revoking a prior successful run"
+        ),
     )
 
     con = warehouse.connect()
@@ -149,7 +152,10 @@ def test_full_pipeline_quality(clean_buckets):
         "gold_reflects_only_promoted_months",
         measured=1.0 if gold_row_count == dirty_result["gold_rows_written"] else 0.0,
         threshold=1.0,
-        detail=f"gold has {gold_row_count} rows, pipeline reported writing {dirty_result['gold_rows_written']}",
+        detail=(
+            f"gold has {gold_row_count} rows, "
+            f"pipeline reported writing {dirty_result['gold_rows_written']}"
+        ),
     )
 
     sqs = aws.client("sqs")

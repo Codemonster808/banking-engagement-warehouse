@@ -11,6 +11,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any, TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -25,6 +26,28 @@ from utils import aws  # noqa: E402
 
 ALERT_TOPIC = "quality-alerts"
 SLA_SECONDS = 180
+
+
+class PipelineResult(TypedDict):
+    """Everything one orchestrated bronze -> silver -> gold run reports.
+
+    This is the JSON payload `main()` prints and what the e2e/data-quality
+    tests assert against, so every key here is part of the run's contract:
+
+    - `months`: one entry per bronze month, promoted or not.
+    - `promoted` / `blocked`: the month keys that passed / failed gates.
+    - the three `*_rows_written` counts: rows written to each gold table
+      (0 when no month was promoted, so gold is left untouched).
+    - `sla`: the Step Functions SLA-check output for this run.
+    """
+
+    months: list[dict[str, Any]]
+    promoted: list[str]
+    blocked: list[dict[str, Any]]
+    gold_rows_written: int
+    fact_engagement_daily_rows_written: int
+    dim_offer_rows_written: int
+    sla: dict[str, Any]
 
 
 def list_bronze_months(s3) -> list[str]:
@@ -53,7 +76,7 @@ def revoke_silver_promotion(s3, month_key: str) -> None:
             s3.delete_object(Bucket="bank-silver", Key=obj["Key"])
 
 
-def run_pipeline(known_customer_ids: set) -> dict:
+def run_pipeline(known_customer_ids: set) -> PipelineResult:
     run_id = str(uuid.uuid4())
     mark_started(run_id)  # Step Functions: real Choice/Retry/Catch around the SLA timer
 
@@ -62,7 +85,15 @@ def run_pipeline(known_customer_ids: set) -> dict:
     sns = aws.client("sns")
 
     months = list_bronze_months(s3)
-    results = {"months": [], "promoted": [], "blocked": []}
+    results: PipelineResult = {
+        "months": [],
+        "promoted": [],
+        "blocked": [],
+        "gold_rows_written": 0,
+        "fact_engagement_daily_rows_written": 0,
+        "dim_offer_rows_written": 0,
+        "sla": {},
+    }
     prior_segment_counts = None
 
     try:

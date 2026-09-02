@@ -93,7 +93,8 @@ def main() -> None:
                 n_events_total += 1
 
     print(
-        f"wrote {n_events_total} events across {args.months} months for {args.customers} customers to {out_dir}"
+        f"wrote {n_events_total} events across {args.months} months "
+        f"for {args.customers} customers to {out_dir}"
     )
     n_churned = sum(1 for h in histories.values() if len(h) > 1)
     print(

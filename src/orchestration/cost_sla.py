@@ -66,7 +66,10 @@ def check_sla(pipeline_id: str, run_date: str, duration_seconds: float, sla_seco
     topic_arn = sns.create_topic(Name=ALERT_TOPIC)["TopicArn"]
     sns.publish(
         TopicArn=topic_arn,
-        Message=f"SLA breach: {pipeline_id} took {duration_seconds:.0f}s (limit {sla_seconds:.0f}s) on {run_date}",
+        Message=(
+            f"SLA breach: {pipeline_id} took {duration_seconds:.0f}s "
+            f"(limit {sla_seconds:.0f}s) on {run_date}"
+        ),
     )
     return {"breached": True, "alert_sent": True}
 
