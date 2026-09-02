@@ -110,7 +110,16 @@ Deliberately. This is the SQL and dimensional-modeling core of the portfolio. Ad
 2. **Quality gates that block, not just report**: 6 seeded defect classes (nulls, cardinality drift, referential breaks, duplicates, out-of-range outliers, freshness failures) must each be caught before gold promotion.
 3. **Cost attribution on shared resources**: three synthetic pipelines share one cluster/bucket — tag-based allocation rules must split cost fairly and auditably.
 
-## Demo (3 minutes)
+## Installation
+
+```bash
+git clone https://github.com/Codemonster808/banking-engagement-warehouse.git
+cd banking-engagement-warehouse
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt   # app deps + lint/type/security tooling
+```
+
+## Usage — Demo (3 minutes)
 
 ```bash
 source env.sh
